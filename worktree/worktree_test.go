@@ -33,7 +33,7 @@ func TestCreateAndPruneWorktree(t *testing.T) {
 		t.Fatalf("worktree path missing: %v", err)
 	}
 
-	if err := PruneWorktree(repo, path); err != nil {
+	if err := PruneWorktree(repo, path, "ledger-test-branch"); err != nil {
 		t.Fatalf("PruneWorktree: %v", err)
 	}
 	if _, err := os.Stat(path); !os.IsNotExist(err) {

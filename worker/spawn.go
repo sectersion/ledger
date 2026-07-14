@@ -5,6 +5,7 @@ package worker
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"os/exec"
 )
 
@@ -19,8 +20,9 @@ type Event struct {
 // SpawnWorker runs `claude -p <prompt> --output-format stream-json` in cwd
 // and streams parsed events as they arrive on the returned channel. The
 // channel is closed when the process's stdout ends (EOF or process exit).
-func SpawnWorker(cwd, prompt string) (<-chan Event, error) {
-	cmd := exec.Command("claude", "-p", prompt, "--output-format", "stream-json", "--verbose")
+func SpawnWorker(cwd, prompt string, extraArgs ...string) (<-chan Event, error) {
+	args := append([]string{"-p", prompt, "--output-format", "stream-json", "--verbose"}, extraArgs...)
+	cmd := exec.Command("claude", args...)
 	cmd.Dir = cwd
 
 	stdout, err := cmd.StdoutPipe()
@@ -55,4 +57,39 @@ func SpawnWorker(cwd, prompt string) (<-chan Event, error) {
 	}()
 
 	return events, nil
+}
+
+// resultEvent mirrors the fields SpawnWorker's caller needs from a
+// stream-json "result" event.
+type resultEvent struct {
+	IsError bool   `json:"is_error"`
+	Result  string `json:"result"`
+}
+
+// Run spawns a worker and blocks until it finishes, returning the text of
+// its final "result" event.
+func Run(cwd, prompt string, extraArgs ...string) (string, error) {
+	events, err := SpawnWorker(cwd, prompt, extraArgs...)
+	if err != nil {
+		return "", err
+	}
+
+	var res resultEvent
+	found := false
+	for e := range events {
+		if e.Type != "result" {
+			continue
+		}
+		if err := json.Unmarshal(e.Raw, &res); err != nil {
+			return "", err
+		}
+		found = true
+	}
+	if !found {
+		return "", fmt.Errorf("worker: no result event in %s output", cwd)
+	}
+	if res.IsError {
+		return "", fmt.Errorf("worker: %s", res.Result)
+	}
+	return res.Result, nil
 }

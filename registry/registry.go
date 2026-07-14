@@ -48,6 +48,14 @@ func (r *Registry) Acquire(path, owner string) (bool, error) {
 	return true, r.save()
 }
 
+// Owner returns the current owner of path, if any.
+func (r *Registry) Owner(path string) (string, bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	owner, held := r.owners[path]
+	return owner, held
+}
+
 // Release drops owner's claim on path, if they hold it.
 func (r *Registry) Release(path, owner string) error {
 	r.mu.Lock()
