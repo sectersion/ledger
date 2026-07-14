@@ -50,7 +50,7 @@ func Research(ctx context.Context, repo, task, journalPath string) (string, erro
 				}
 				defer worktree.PruneWorktree(repo, wt, branch)
 
-				out, err := worker.Run(wt, fmt.Sprintf(role.prompt, task))
+				out, err := worker.Run(ctx, wt, fmt.Sprintf(role.prompt, task))
 				if err != nil {
 					journal.Append(journalPath, "error", map[string]string{"role": role.name, "error": err.Error()})
 					return fmt.Errorf("%s: %w", role.name, err)

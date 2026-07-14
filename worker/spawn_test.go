@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"context"
 	"os/exec"
 	"testing"
 )
@@ -13,7 +14,7 @@ func TestSpawnWorkerStreamsEvents(t *testing.T) {
 		t.Skip("claude CLI not on PATH")
 	}
 
-	events, err := SpawnWorker(t.TempDir(), "reply with exactly the word ok")
+	events, err := SpawnWorker(context.Background(), t.TempDir(), "reply with exactly the word ok")
 	if err != nil {
 		t.Fatalf("SpawnWorker: %v", err)
 	}
@@ -24,5 +25,20 @@ func TestSpawnWorkerStreamsEvents(t *testing.T) {
 	}
 	if got == 0 {
 		t.Fatal("expected at least one event, got none")
+	}
+}
+
+// TestSpawnWorkerKilledByContext proves the M7 kill primitive: canceling
+// ctx stops the worker rather than letting it run to completion.
+func TestSpawnWorkerKilledByContext(t *testing.T) {
+	if _, err := exec.LookPath("claude"); err != nil {
+		t.Skip("claude CLI not on PATH")
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	if _, err := SpawnWorker(ctx, t.TempDir(), "reply with exactly the word ok"); err == nil {
+		t.Fatal("expected SpawnWorker to fail immediately on an already-canceled context")
 	}
 }

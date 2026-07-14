@@ -4,6 +4,7 @@ package worker
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os/exec"
@@ -20,9 +21,10 @@ type Event struct {
 // SpawnWorker runs `claude -p <prompt> --output-format stream-json` in cwd
 // and streams parsed events as they arrive on the returned channel. The
 // channel is closed when the process's stdout ends (EOF or process exit).
-func SpawnWorker(cwd, prompt string, extraArgs ...string) (<-chan Event, error) {
+// Canceling ctx kills the worker process (the M7 kill primitive).
+func SpawnWorker(ctx context.Context, cwd, prompt string, extraArgs ...string) (<-chan Event, error) {
 	args := append([]string{"-p", prompt, "--output-format", "stream-json", "--verbose"}, extraArgs...)
-	cmd := exec.Command("claude", args...)
+	cmd := exec.CommandContext(ctx, "claude", args...)
 	cmd.Dir = cwd
 
 	stdout, err := cmd.StdoutPipe()
@@ -68,8 +70,8 @@ type resultEvent struct {
 
 // Run spawns a worker and blocks until it finishes, returning the text of
 // its final "result" event.
-func Run(cwd, prompt string, extraArgs ...string) (string, error) {
-	events, err := SpawnWorker(cwd, prompt, extraArgs...)
+func Run(ctx context.Context, cwd, prompt string, extraArgs ...string) (string, error) {
+	events, err := SpawnWorker(ctx, cwd, prompt, extraArgs...)
 	if err != nil {
 		return "", err
 	}

@@ -101,7 +101,7 @@ func runImplementRoles(ctx context.Context, repo, plan, journalPath string, role
 					return fmt.Errorf("%s: %w", role, err)
 				}
 
-				out, err := worker.Run(wt, fmt.Sprintf(implementPromptTmpl, role, plan),
+				out, err := worker.Run(ctx, wt, fmt.Sprintf(implementPromptTmpl, role, plan),
 					"--mcp-config", configPath,
 					"--allowed-tools", "mcp__ownership__request_ownership,mcp__ownership__release_ownership")
 				if err != nil {
