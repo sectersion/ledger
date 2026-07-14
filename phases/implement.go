@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/sectersion/ledger/journal"
+	"github.com/sectersion/ledger/modelrouting"
 	"github.com/sectersion/ledger/ownership"
 	"github.com/sectersion/ledger/queue"
 	"github.com/sectersion/ledger/registry"
@@ -64,6 +65,11 @@ func loadRegistry(repo string) (*registry.Registry, error) {
 }
 
 func runImplementRoles(ctx context.Context, repo, plan, journalPath string, roles []string, reg *registry.Registry) (map[string]string, error) {
+	model, err := modelrouting.Choose(ctx, repo, plan)
+	if err != nil {
+		return nil, fmt.Errorf("implement: %w", err)
+	}
+
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return nil, fmt.Errorf("implement: %w", err)
@@ -102,9 +108,10 @@ func runImplementRoles(ctx context.Context, repo, plan, journalPath string, role
 					return fmt.Errorf("%s: %w", role, err)
 				}
 
-				out, err := worker.Run(ctx, wt, fmt.Sprintf(implementPromptTmpl, role, plan),
+				args := append(modelrouting.Args(model),
 					"--mcp-config", configPath,
 					"--allowed-tools", "mcp__ownership__request_ownership,mcp__ownership__release_ownership")
+				out, err := worker.Run(ctx, wt, fmt.Sprintf(implementPromptTmpl, role, plan), args...)
 				if err != nil {
 					journal.Append(journalPath, "error", map[string]string{"role": role, "error": err.Error()})
 					return fmt.Errorf("%s: %w", role, err)

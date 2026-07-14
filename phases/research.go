@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/sectersion/ledger/journal"
+	"github.com/sectersion/ledger/modelrouting"
 	"github.com/sectersion/ledger/queue"
 	"github.com/sectersion/ledger/settings"
 	"github.com/sectersion/ledger/worker"
@@ -34,6 +35,11 @@ var researchRoles = []struct {
 // aggregates their output into a single report file under
 // <repo>/.ledger/research-report.md. It returns the report's path.
 func Research(ctx context.Context, repo, task, journalPath string) (string, error) {
+	model, err := modelrouting.Choose(ctx, repo, task)
+	if err != nil {
+		return "", fmt.Errorf("research: %w", err)
+	}
+
 	q := queue.New(settings.LoadDefault().Cap(len(researchRoles)))
 	tasks := make(chan queue.Task, len(researchRoles))
 	reports := make([]string, len(researchRoles))
@@ -51,7 +57,7 @@ func Research(ctx context.Context, repo, task, journalPath string) (string, erro
 				}
 				defer worktree.PruneWorktree(repo, wt, branch)
 
-				out, err := worker.Run(ctx, wt, fmt.Sprintf(role.prompt, task))
+				out, err := worker.Run(ctx, wt, fmt.Sprintf(role.prompt, task), modelrouting.Args(model)...)
 				if err != nil {
 					journal.Append(journalPath, "error", map[string]string{"role": role.name, "error": err.Error()})
 					return fmt.Errorf("%s: %w", role.name, err)

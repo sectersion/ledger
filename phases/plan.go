@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/sectersion/ledger/journal"
+	"github.com/sectersion/ledger/modelrouting"
 	"github.com/sectersion/ledger/queue"
 	"github.com/sectersion/ledger/settings"
 	"github.com/sectersion/ledger/worker"
@@ -29,6 +30,11 @@ var planRoles = []struct {
 // aggregates their output into a single spec+rubric file under
 // <repo>/.ledger/plan.md. It returns the plan's path.
 func Plan(ctx context.Context, repo, researchReport, journalPath string) (string, error) {
+	model, err := modelrouting.Choose(ctx, repo, researchReport)
+	if err != nil {
+		return "", fmt.Errorf("plan: %w", err)
+	}
+
 	q := queue.New(settings.LoadDefault().Cap(len(planRoles)))
 	tasks := make(chan queue.Task, len(planRoles))
 	sections := make([]string, len(planRoles))
@@ -46,7 +52,7 @@ func Plan(ctx context.Context, repo, researchReport, journalPath string) (string
 				}
 				defer worktree.PruneWorktree(repo, wt, branch)
 
-				out, err := worker.Run(ctx, wt, fmt.Sprintf(role.prompt, researchReport))
+				out, err := worker.Run(ctx, wt, fmt.Sprintf(role.prompt, researchReport), modelrouting.Args(model)...)
 				if err != nil {
 					journal.Append(journalPath, "error", map[string]string{"role": role.name, "error": err.Error()})
 					return fmt.Errorf("%s: %w", role.name, err)
