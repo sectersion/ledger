@@ -13,6 +13,7 @@ import (
 	"github.com/sectersion/ledger/ownership"
 	"github.com/sectersion/ledger/queue"
 	"github.com/sectersion/ledger/registry"
+	"github.com/sectersion/ledger/settings"
 	"github.com/sectersion/ledger/worker"
 	"github.com/sectersion/ledger/worktree"
 )
@@ -78,7 +79,7 @@ func runImplementRoles(ctx context.Context, repo, plan, journalPath string, role
 	}
 	defer os.RemoveAll(configDir)
 
-	q := queue.New(len(roles))
+	q := queue.New(settings.LoadDefault().Cap(len(roles)))
 	tasks := make(chan queue.Task, len(roles))
 	outputs := make(map[string]string, len(roles))
 	var outputsMu sync.Mutex

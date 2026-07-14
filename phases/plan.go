@@ -9,6 +9,7 @@ import (
 
 	"github.com/sectersion/ledger/journal"
 	"github.com/sectersion/ledger/queue"
+	"github.com/sectersion/ledger/settings"
 	"github.com/sectersion/ledger/worker"
 	"github.com/sectersion/ledger/worktree"
 )
@@ -28,7 +29,7 @@ var planRoles = []struct {
 // aggregates their output into a single spec+rubric file under
 // <repo>/.ledger/plan.md. It returns the plan's path.
 func Plan(ctx context.Context, repo, researchReport, journalPath string) (string, error) {
-	q := queue.New(len(planRoles))
+	q := queue.New(settings.LoadDefault().Cap(len(planRoles)))
 	tasks := make(chan queue.Task, len(planRoles))
 	sections := make([]string, len(planRoles))
 

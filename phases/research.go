@@ -12,6 +12,7 @@ import (
 
 	"github.com/sectersion/ledger/journal"
 	"github.com/sectersion/ledger/queue"
+	"github.com/sectersion/ledger/settings"
 	"github.com/sectersion/ledger/worker"
 	"github.com/sectersion/ledger/worktree"
 )
@@ -33,7 +34,7 @@ var researchRoles = []struct {
 // aggregates their output into a single report file under
 // <repo>/.ledger/research-report.md. It returns the report's path.
 func Research(ctx context.Context, repo, task, journalPath string) (string, error) {
-	q := queue.New(len(researchRoles))
+	q := queue.New(settings.LoadDefault().Cap(len(researchRoles)))
 	tasks := make(chan queue.Task, len(researchRoles))
 	reports := make([]string, len(researchRoles))
 
