@@ -3,24 +3,27 @@
 Derived from PLAN.md. Ordered so each milestone is runnable/testable before
 the next starts — no big-bang integration at the end.
 
-Stack: Node + TypeScript, Ink (TUI), `claude` CLI spawned as subprocess
-(no SDK), plain JSON files for registry/journals (no DB — matches PLAN.md's
-"plain process" stance).
+Stack: Go, Bubble Tea (TUI), `claude` CLI spawned as subprocess (no SDK),
+plain JSON files for registry/journals (no DB — matches PLAN.md's "plain
+process" stance).
 
 ## M0 — Project skeleton
-- `package.json`, TS config, entry point (`src/index.tsx`), lint/test runner.
-- No logic yet; just `ledger` boots an empty Ink screen.
+- `go.mod`, entry point (`cmd/ledger/main.go`), `go vet`/`go test` wired up.
+- No logic yet; just `ledger` boots an empty Bubble Tea screen.
 
 ## M1 — Worker spawn primitive
-- `spawnWorker(cwd, taskPrompt)`: runs `claude -p <prompt> --output-format
-  stream-json` as a subprocess in a given cwd, streams stdout.
-- Parse `stream-json` lines into typed events as they arrive (no polling).
+- `SpawnWorker(cwd, taskPrompt string) (<-chan Event, error)`: runs `claude -p
+  <prompt> --output-format stream-json` via `os/exec` in a given cwd, wraps
+  stdout in a `bufio.Scanner` and streams lines as they arrive.
+- Parse each `stream-json` line into a typed `Event` struct with
+  `encoding/json` (no polling).
 - Manual test: spawn one worker against a scratch dir, confirm events stream.
 - No worktrees, no orchestrator yet — just prove the subprocess/stream contract.
 
 ## M2 — Git worktree lifecycle
-- `createWorktree(branch)` / `pruneWorktree(path)` wrapping `git worktree add`
-  / `git worktree remove`.
+- `CreateWorktree(branch string) (path string, err error)` /
+  `PruneWorktree(path string) error` wrapping `git worktree add` /
+  `git worktree remove` via `os/exec`.
 - Wire into M1: orchestrator creates the worktree, passes path as spawn cwd.
 - Worktrees left on disk after use; prune is a separate explicit command.
 
@@ -35,14 +38,14 @@ Stack: Node + TypeScript, Ink (TUI), `claude` CLI spawned as subprocess
   before adding phases, so it's tested early rather than bolted on.
 
 ## M4 — Ownership MCP server
-- Small MCP server exposing `request_ownership(path)` / `release_ownership(path)`,
-  checked against the lock registry (M3).
+- Small MCP server (Go, stdio transport) exposing `request_ownership(path)` /
+  `release_ownership(path)`, checked against the lock registry (M3).
 - Passed to each worker via `--mcp-config`.
 - Manual test: two workers requesting overlapping paths — one gets denied.
 
 ## M5 — DAG + concurrency queue
-- In-memory FIFO task queue, concurrency cap (default 10, from
-  `~/.ledger/settings.json`).
+- In-memory FIFO task queue (channel-backed), concurrency cap (default 10,
+  from `~/.ledger/settings.json`).
 - DAG state tracks phase membership per task; queued-but-unspawned tasks are
   the only state that's *not* durable (by design — nothing lost on crash
   since they have no worktree/journal yet).
@@ -74,17 +77,18 @@ Stack: Node + TypeScript, Ink (TUI), `claude` CLI spawned as subprocess
   filtered by settings.json allow-list. Wire in after phases exist, since
   it's a routing decision per spawn, not new spawn machinery.
 
-## M9 — TUI (Ink)
-- Split layout: collapsible agent tree (left) + live journal stream
-  (right), top/bottom bars per PLAN.md's mockup.
+## M9 — TUI (Bubble Tea)
+- Split layout: collapsible agent tree (left, via Bubbles' `list`/`tree`
+  patterns) + live journal stream (right, via `viewport`), top/bottom bars
+  per PLAN.md's mockup, styled with Lip Gloss.
 - Cursor nav + single-select; k/p/`/btw` act on selected agent.
 - Kill = confirm modal; pause = immediate.
 - Review gates = modal overlay (not pane swap), a/r/e keybindings live at
   all times.
 - Toast/status-line for phase transitions and non-blocking auto-requeue.
 - `/` search filters tree by agent name/id only.
-- Build this last: it's a renderer over state M1–M8 already produce: no
-  TUI-only state to invent.
+- Build this last: it's a renderer over state M1–M8 already produce (worker
+  events fed in as Bubble Tea `tea.Msg`s): no TUI-only state to invent.
 
 ## M10 — Settings & polish
 - `~/.ledger/settings.json`: concurrency cap, model allow-list, max
@@ -104,6 +108,6 @@ M0-M3 establish the two durable data sources (journals, registry) before
 anything depends on them. M4-M5 add the runtime coordination primitives.
 M6 is the bulk of the product — built phase-by-phase against a toy repo so
 each is independently testable. M7-M8 are cross-cutting concerns layered on
-top of working phases. M9 (TUI) is deliberately last: it only renders state
-the backend already produces, so building it early would mean building it
-twice.
+top of working phases. M9 (TUI, Bubble Tea) is deliberately last: it only
+renders state the backend already produces, so building it early would mean
+building it twice.

@@ -9,8 +9,8 @@ git worktree isolation, per-agent journals, and human review gates.
 ## Architecture
 
 - Single orchestrator (no ring/democratic model — deferred past v1).
-- Orchestrator is a plain process (Node, TUI built in Ink), not itself a
-  Claude agent — it's deterministic control flow: DAG state, spawning
+- Orchestrator is a plain process (Go, TUI built with Bubble Tea), not itself
+  a Claude agent — it's deterministic control flow: DAG state, spawning
   worktrees, granting locks, aggregating journals.
 - Orchestrator spawns all work as headless Claude Code instances, each in
   its own git worktree.
@@ -130,7 +130,7 @@ Pipeline shape is hardcoded for v1 — not user-configurable.
   is no live channel to inject a message into a running worker. `/btw`
   reuses the existing kill-and-respawn primitive: kill the target worker,
   prepend the relayed message to its task context, respawn.
-- **TUI**: single process — the Ink TUI is the orchestrator's own
+- **TUI**: single process — the Bubble Tea TUI is the orchestrator's own
   renderer, not a separate attachable client. No detach/reattach, no
   cross-process state sync.
 - **Model routing**: orchestrator has its own one-off `claude` access,
@@ -201,8 +201,8 @@ Pipeline shape is hardcoded for v1 — not user-configurable.
 - **Search** (`/`): filters/jumps the tree cursor by agent name/id only.
   Not full-text journal search — journals are files on disk, greppable
   directly if deeper content search is ever needed.
-- **Process model**: single process — the Ink TUI is the orchestrator's
-  own renderer. No explicit detach/reattach support in v1; backgrounding
+- **Process model**: single process — the Bubble Tea TUI is the
+  orchestrator's own renderer. No explicit detach/reattach support in v1; backgrounding
   is left to standard OS/terminal job control (tmux/screen/`Ctrl+Z`),
   since there's no separate state-sync layer to support it anyway.
 
