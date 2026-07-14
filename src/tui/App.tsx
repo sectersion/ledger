@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Box, Text, useInput } from "ink";
+import { Box, Text, useInput, useStdout } from "ink";
 import type { AgentState, ResumeState } from "../resume.ts";
 import { killWorker } from "../worker.ts";
 import { appendJournal, type JournalRecord } from "../journal.ts";
@@ -63,6 +63,18 @@ export function App({
       : null,
   );
   const [toast, setToast] = useState<Toast | null>(null);
+
+  const { stdout } = useStdout();
+  const [size, setSize] = useState({ columns: stdout.columns || 80, rows: stdout.rows || 24 });
+  useEffect(() => {
+    stdout.write("\x1b[?1049h\x1b[2J\x1b[H");
+    const onResize = () => setSize({ columns: stdout.columns || 80, rows: stdout.rows || 24 });
+    stdout.on("resize", onResize);
+    return () => {
+      stdout.off("resize", onResize);
+      stdout.write("\x1b[?1049l");
+    };
+  }, [stdout]);
 
   useEffect(() => {
     if (!toast) return;
@@ -226,11 +238,11 @@ export function App({
   const gateState = modal?.kind === "gate" ? `pending (${modal.name})` : "none pending";
 
   return (
-    <Box flexDirection="column" width="100%">
+    <Box flexDirection="column" width={size.columns} height={size.rows}>
       <Text>
         ledger · stage: {phase} · substage: {substage}
       </Text>
-      <Box borderStyle="single" flexDirection="row">
+      <Box borderStyle="single" flexDirection="row" flexGrow={1}>
         <Box flexDirection="column" width="40%" borderStyle="single">
           <Text bold> AGENTS</Text>
           {rows.map((row, i) => {
