@@ -75,12 +75,32 @@ type resultEvent struct {
 // registers its own cancel func under its agent ID (WithAgentID, or
 // filepath.Base(cwd) if unset) — the M9 TUI's live-status and kill
 // primitives, with no changes needed at any existing call site.
+//
+// If ctx also carries a Relayer (WithRelayer) and a run fails, Run checks
+// for a pending `/btw` relay message under this agent ID; if one is
+// pending, it respawns with the message prepended to the prompt instead of
+// returning the error.
 func Run(ctx context.Context, cwd, prompt string, extraArgs ...string) (string, error) {
 	id := idFromContext(ctx)
 	if id == "" {
 		id = filepath.Base(cwd)
 	}
+	relayer := relayerFromContext(ctx)
 
+	for {
+		out, err := runOnce(ctx, id, cwd, prompt, extraArgs...)
+		if err == nil || relayer == nil {
+			return out, err
+		}
+		msg, ok := relayer(id)
+		if !ok {
+			return out, err
+		}
+		prompt = msg + "\n\n" + prompt
+	}
+}
+
+func runOnce(ctx context.Context, id, cwd, prompt string, extraArgs ...string) (string, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	if reg := registrarFromContext(ctx); reg != nil {

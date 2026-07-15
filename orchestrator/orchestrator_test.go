@@ -108,6 +108,27 @@ func TestRunPipelineDrivesAllPhases(t *testing.T) {
 	}
 }
 
+// TestRelayIsConsumedOnce proves the /btw plumbing worker.Run relies on:
+// Relay queues a message under an agent ID, and the first TakeRelay for
+// that ID returns it and clears it — so a respawn only picks up one relay
+// per /btw press, not a repeat on every subsequent failure.
+func TestRelayIsConsumedOnce(t *testing.T) {
+	o := New()
+	o.Relay("agent-1", "hold off on the DB migration")
+
+	msg, ok := o.TakeRelay("agent-1")
+	if !ok || msg != "hold off on the DB migration" {
+		t.Fatalf("TakeRelay = %q, %v; want the queued message", msg, ok)
+	}
+
+	if _, ok := o.TakeRelay("agent-1"); ok {
+		t.Fatal("TakeRelay should not return a message twice")
+	}
+	if _, ok := o.TakeRelay("agent-2"); ok {
+		t.Fatal("TakeRelay should not return a message for an unrelated agent")
+	}
+}
+
 func TestKillStopsAnInFlightAgent(t *testing.T) {
 	if _, err := exec.LookPath("claude"); err != nil {
 		t.Skip("claude CLI not on PATH")

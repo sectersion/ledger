@@ -15,12 +15,19 @@ type Sink func(agentID string, e Event)
 // later without touching any other running worker.
 type Registrar func(agentID string, cancel context.CancelFunc)
 
+// Relayer is consulted after a worker's run fails; if it returns a pending
+// message for that agent ID (ok == true, consuming it), Run respawns the
+// worker with the message prepended to its prompt instead of returning the
+// error — the `/btw` relay's actual respawn.
+type Relayer func(agentID string) (message string, ok bool)
+
 type ctxKey int
 
 const (
 	agentIDKey ctxKey = iota
 	sinkKey
 	registrarKey
+	relayerKey
 )
 
 // WithAgentID labels the next Run call with an explicit agent ID, instead
@@ -41,6 +48,12 @@ func WithRegistrar(ctx context.Context, r Registrar) context.Context {
 	return context.WithValue(ctx, registrarKey, r)
 }
 
+// WithRelayer attaches a Relayer that every worker.Run call reached through
+// ctx consults after a failed run, to support `/btw`'s respawn.
+func WithRelayer(ctx context.Context, r Relayer) context.Context {
+	return context.WithValue(ctx, relayerKey, r)
+}
+
 func idFromContext(ctx context.Context) string {
 	id, _ := ctx.Value(agentIDKey).(string)
 	return id
@@ -53,6 +66,11 @@ func sinkFromContext(ctx context.Context) Sink {
 
 func registrarFromContext(ctx context.Context) Registrar {
 	r, _ := ctx.Value(registrarKey).(Registrar)
+	return r
+}
+
+func relayerFromContext(ctx context.Context) Relayer {
+	r, _ := ctx.Value(relayerKey).(Relayer)
 	return r
 }
 

@@ -87,21 +87,17 @@ func (m Model) handleGateCommentKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-// handleBtwKey composes and submits a /btw relay message: kill the
-// selected agent and journal the relayed message.
-//
-// ponytail: this reuses the Kill primitive and records the intent, but
-// doesn't yet auto-respawn the killed role with the message prepended to
-// its task context (PLAN.md's full /btw spec) — that needs a per-role
-// "restart with modified prompt" hook the phases fan-out loops don't
-// expose yet. Upgrade path: give Research/Plan/Implement's role runners a
-// respawn callback the orchestrator can invoke with
-// failure.PrependMessage(relayed, originalPrompt).
+// handleBtwKey composes and submits a /btw relay message: queue the
+// message for id (consumed by worker.Run via the orchestrator's Relayer on
+// the killed run's failure) and kill the selected agent, so its
+// respawn — the fan-out loop retrying that role — carries the message
+// prepended to its prompt.
 func (m Model) handleBtwKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "enter":
 		text := m.btwInput.Value()
 		id := m.selectedID
+		m.o.Relay(id, text)
 		m.o.Kill(id)
 		journal.Append(m.journalPath, "btw", map[string]string{"agentID": id, "message": text})
 		m.setToast("relayed to " + id + ": " + text)

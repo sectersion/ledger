@@ -61,6 +61,45 @@ until you respond.
 Concurrency cap and allowed models are configured in
 `~/.ledger/settings.json`.
 
+## Demo
+
+See [DEMO.md](DEMO.md) for a recording (or the steps to make your own) of
+the pipeline running end to end against a small repo — parallel worker
+roles, a review gate firing, and the final shipped branch.
+
+## Why a fixed pipeline
+
+Tools like SWE-agent or `aider --architect` give the model a freeform
+loop — plan, act, observe, repeat — and let it decide what to do next at
+every step. That's more flexible, but it also means the model can wander:
+skip validation, re-plan mid-implementation, or silently touch a file
+another instance is also editing.
+
+`ledger` picks the opposite tradeoff: research → plan → implement →
+validate → review → ship is fixed and always runs in that order. You give
+up the ability for the agent to decide "actually, skip validation this
+time" — but in exchange you get a pipeline that's predictable to review,
+where every stage produces an artifact you can gate on, and where a stuck
+or wrong agent fails one bounded stage instead of the whole run. For big,
+multi-file changes where the failure mode you're avoiding is "confidently
+wrong across 20 files," predictability wins. For open-ended exploration or
+single-file fixes, a freeform loop is faster and the fixed structure is
+just overhead.
+
+## Comparison
+
+|                       | ledger                          | SWE-agent                     | `aider --architect`         | Devin                          |
+|-----------------------|----------------------------------|--------------------------------|-------------------------------|--------------------------------|
+| Pipeline structure    | Fixed 6-stage (research→plan→implement→validate→review→ship) | Freeform ReAct-style agent loop | Freeform: architect model plans, editor model acts, loop | Freeform, autonomous planning loop |
+| Isolation model       | One git worktree per role/agent, shared ownership registry (mutually exclusive file locks) | Single sandboxed container, one agent | Single working tree, no multi-agent isolation | Own cloud VM/sandbox per session |
+| Human-in-the-loop     | Blocking gates after Research, Plan, and before Ship (approve/reject/edit) | Optional human feedback, not staged | Interactive per-edit confirmation | Async check-ins, not staged gates |
+| Self-hosting          | Yes — plain Go binary + your own `claude` CLI, no hosted service | Yes — open source, run locally or in CI | Yes — open source, local | No — hosted product only |
+
+This is a self-assessment, not a benchmark — the tools solve overlapping
+but not identical problems (SWE-agent targets issue-resolution
+benchmarks, Devin targets a hosted autonomous-engineer product). Treat it
+as "what tradeoff did each one pick," not a leaderboard.
+
 ## How it works
 
 1. **Research** — parallel subagents (Codebase Locator/Analyzer, Pattern
@@ -86,8 +125,6 @@ with tests that exercise the real `claude` CLI end to end (skipped
 automatically if `claude` isn't on `PATH`).
 
 Known gaps, deliberately scoped rather than silently missing:
-- `/btw` kills and journals the relayed message but doesn't yet
-  auto-respawn the role with the message prepended.
 - Pause/Resume are UI-visible only, not a real OS process suspend (no
   portable SIGSTOP equivalent via `os/exec` on Windows).
 - The standalone stdio ownership MCP server (`cmd/ledger-ownership-mcp`)

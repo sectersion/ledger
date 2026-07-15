@@ -79,6 +79,7 @@ type Orchestrator struct {
 	agents       map[string]*Agent
 	order        []string
 	cancels      map[string]context.CancelFunc
+	relays       map[string]string
 	currentPhase string
 	journalPath  string
 
@@ -94,6 +95,7 @@ func New() *Orchestrator {
 	return &Orchestrator{
 		agents:  map[string]*Agent{},
 		cancels: map[string]context.CancelFunc{},
+		relays:  map[string]string{},
 		updates: make(chan Update, 256),
 		gates:   make(chan *GateRequest),
 	}
@@ -137,6 +139,27 @@ func (o *Orchestrator) Kill(id string) {
 	if cancel != nil {
 		cancel()
 	}
+}
+
+// Relay queues message to be prepended to id's prompt the next time its
+// role respawns — paired with Kill, this is `/btw`'s actual effect: kill
+// the running worker, then relay the message into its replacement.
+func (o *Orchestrator) Relay(id, message string) {
+	o.mu.Lock()
+	o.relays[id] = message
+	o.mu.Unlock()
+}
+
+// TakeRelay returns and clears any message queued by Relay for id. It's
+// worker.Relayer, consulted by worker.Run after a failed run.
+func (o *Orchestrator) TakeRelay(id string) (string, bool) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	msg, ok := o.relays[id]
+	if ok {
+		delete(o.relays, id)
+	}
+	return msg, ok
 }
 
 // Pause marks an agent paused and Resume marks it running again.
@@ -235,6 +258,7 @@ func (o *Orchestrator) RunPipeline(ctx context.Context, repo, task, journalPath 
 	o.journalPath = journalPath
 	ctx = worker.WithSink(ctx, o.sink)
 	ctx = worker.WithRegistrar(ctx, o.registerCancel)
+	ctx = worker.WithRelayer(ctx, o.TakeRelay)
 
 	o.setPhase("research")
 	reportPath, err := phases.Research(ctx, repo, task, journalPath)
