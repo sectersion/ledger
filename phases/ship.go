@@ -18,7 +18,7 @@ what you did and its outcome.`
 // instance in dir: try `gh pr create`, fall back to `git push`/branch
 // handoff. It returns the worker's report of what happened.
 func Ship(ctx context.Context, dir, journalPath string) (string, error) {
-	report, err := worker.Run(ctx, dir, shipPromptTmpl, "--allowed-tools", "Bash(git:*),Bash(gh:*)")
+	report, err := worker.Run(worker.WithAgentID(ctx, "ship"), dir, shipPromptTmpl, "--allowed-tools", "Bash(git:*),Bash(gh:*)")
 	if err != nil {
 		journal.Append(journalPath, "error", map[string]string{"role": "ship", "error": err.Error()})
 		return "", fmt.Errorf("ship: %w", err)

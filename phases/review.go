@@ -28,7 +28,7 @@ Plan the changes were meant to implement:
 // Review runs an automated security/quality review of dir's working tree
 // against plan, and returns it pending human sign-off.
 func Review(ctx context.Context, dir, plan, journalPath string) (ReviewResult, error) {
-	report, err := worker.Run(ctx, dir, fmt.Sprintf(reviewPromptTmpl, plan))
+	report, err := worker.Run(worker.WithAgentID(ctx, "review"), dir, fmt.Sprintf(reviewPromptTmpl, plan))
 	if err != nil {
 		return ReviewResult{}, fmt.Errorf("review: %w", err)
 	}

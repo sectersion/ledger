@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"path/filepath"
 )
 
 // Event is one stream-json line from `claude --output-format stream-json`.
@@ -69,8 +70,24 @@ type resultEvent struct {
 }
 
 // Run spawns a worker and blocks until it finishes, returning the text of
-// its final "result" event.
+// its final "result" event. If ctx carries a Sink (WithSink) and/or
+// Registrar (WithRegistrar), Run reports every event to the sink and
+// registers its own cancel func under its agent ID (WithAgentID, or
+// filepath.Base(cwd) if unset) — the M9 TUI's live-status and kill
+// primitives, with no changes needed at any existing call site.
 func Run(ctx context.Context, cwd, prompt string, extraArgs ...string) (string, error) {
+	id := idFromContext(ctx)
+	if id == "" {
+		id = filepath.Base(cwd)
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	if reg := registrarFromContext(ctx); reg != nil {
+		reg(id, cancel)
+	}
+	sink := sinkFromContext(ctx)
+
 	events, err := SpawnWorker(ctx, cwd, prompt, extraArgs...)
 	if err != nil {
 		return "", err
@@ -79,6 +96,9 @@ func Run(ctx context.Context, cwd, prompt string, extraArgs ...string) (string, 
 	var res resultEvent
 	found := false
 	for e := range events {
+		if sink != nil {
+			sink(id, e)
+		}
 		if e.Type != "result" {
 			continue
 		}

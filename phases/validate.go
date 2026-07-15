@@ -39,7 +39,7 @@ func Validate(ctx context.Context, dir, plan, journalPath string) (ValidateResul
 	result.TestOutput = string(testOut)
 	result.FailedPackages = failedPackages(testOut)
 
-	compliance, complianceErr := worker.Run(ctx, dir, fmt.Sprintf(
+	compliance, complianceErr := worker.Run(worker.WithAgentID(ctx, "validate"), dir, fmt.Sprintf(
 		"Given this implementation plan, check whether the current working tree actually implements it. Reply with exactly \"PASS\" if it does, or \"FAIL: <reason>\" if it doesn't.\n\nPlan:\n%s", plan))
 	result.Compliance = compliance
 	if complianceErr != nil {
