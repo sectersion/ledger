@@ -52,7 +52,8 @@ func Plan(ctx context.Context, repo, researchReport, journalPath string) (string
 				}
 				defer worktree.PruneWorktree(repo, wt, branch)
 
-				out, err := worker.Run(ctx, wt, fmt.Sprintf(role.prompt, researchReport), modelrouting.Args(model)...)
+				args := append(modelrouting.Args(model), worker.ReadOnlyArgs()...)
+				out, err := worker.Run(ctx, wt, fmt.Sprintf(role.prompt, researchReport), args...)
 				if err != nil {
 					journal.Append(journalPath, "error", map[string]string{"role": role.name, "error": err.Error()})
 					return fmt.Errorf("%s: %w", role.name, err)

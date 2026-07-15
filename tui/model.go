@@ -112,7 +112,11 @@ func (m *Model) setToast(text string) {
 func (m *Model) refreshDetail() {
 	for _, a := range m.agents {
 		if a.ID == m.selectedID {
-			m.detail.SetContent(strings.Join(a.Lines, "\n"))
+			lines := make([]string, len(a.Lines))
+			for i, l := range a.Lines {
+				lines[i] = styleDetailLine(l)
+			}
+			m.detail.SetContent(strings.Join(lines, "\n"))
 			m.detail.GotoBottom()
 			return
 		}
@@ -126,7 +130,7 @@ func (m *Model) resize() {
 	if paneHeight < 1 {
 		paneHeight = 1
 	}
-	avail := m.width - sidebarWidth
+	avail := m.width - m.sidebarWidth()
 	if avail < 0 {
 		avail = 0
 	}
@@ -155,6 +159,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.setToast(fmt.Sprintf("phase: %s", u.Phase))
 		}
 		m.agents = m.o.Snapshot()
+		if m.selectedID == "" && len(m.agents) > 0 {
+			m.selectedID = m.agents[0].ID
+		}
 		m.refreshDetail()
 		return m, waitForUpdate(m.o.Updates())
 

@@ -9,10 +9,9 @@ import (
 )
 
 // sidebarContentWidth fits the "LEDGER" block-letter logo (35 cols) with a
-// little breathing room; sidebarWidth is the total rendered width once
-// paneStyle's border and padding are added.
+// little breathing room, when the terminal is wide enough for it — see
+// Model.sidebarContentWidth for the narrow-terminal fallback.
 const sidebarContentWidth = 36
-const sidebarWidth = sidebarContentWidth + 4
 
 var logoGlyphs = map[byte][5]string{
 	'L': {"█    ", "█    ", "█    ", "█    ", "█████"},

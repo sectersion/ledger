@@ -79,6 +79,14 @@ func relayerFromContext(ctx context.Context) Relayer {
 // (system/init/hook noise).
 func (e Event) Summary() string {
 	switch e.Type {
+	case "prompt":
+		var p struct {
+			Prompt string `json:"prompt"`
+		}
+		if err := json.Unmarshal(e.Raw, &p); err != nil {
+			return ""
+		}
+		return "▶ " + p.Prompt
 	case "assistant":
 		var m struct {
 			Message struct {

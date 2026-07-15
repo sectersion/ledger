@@ -30,7 +30,7 @@ func Choose(ctx context.Context, dir, job string) (string, error) {
 		return allow[0], nil
 	}
 
-	out, err := worker.Run(worker.WithAgentID(ctx, "model-router"), dir, fmt.Sprintf(choosePromptTmpl, strings.Join(allow, ", "), job))
+	out, err := worker.Run(worker.WithAgentID(ctx, "model-router"), dir, fmt.Sprintf(choosePromptTmpl, strings.Join(allow, ", "), job), worker.ReadOnlyArgs()...)
 	if err != nil {
 		return allow[0], nil
 	}

@@ -69,6 +69,17 @@ type resultEvent struct {
 	Result  string `json:"result"`
 }
 
+// ReadOnlyArgs is the --allowed-tools set for workers that only ever need
+// to explore a repo (research/plan/review roles, the model router, the
+// validate compliance check) — never write files or run arbitrary
+// commands. Headless `claude -p` runs have no TTY to answer a permission
+// prompt, so any tool use outside an explicit allow-list hangs forever;
+// every worker.Run call needs one of these, or its own like Implement's
+// ownership-scoped list or Ship's git/gh list.
+func ReadOnlyArgs() []string {
+	return []string{"--allowed-tools", "Read,Grep,Glob,Bash(git log:*),Bash(git show:*),Bash(git diff:*)"}
+}
+
 // Run spawns a worker and blocks until it finishes, returning the text of
 // its final "result" event. If ctx carries a Sink (WithSink) and/or
 // Registrar (WithRegistrar), Run reports every event to the sink and
@@ -107,6 +118,13 @@ func runOnce(ctx context.Context, id, cwd, prompt string, extraArgs ...string) (
 		reg(id, cancel)
 	}
 	sink := sinkFromContext(ctx)
+	if sink != nil {
+		if raw, err := json.Marshal(struct {
+			Prompt string `json:"prompt"`
+		}{prompt}); err == nil {
+			sink(id, Event{Type: "prompt", Raw: raw})
+		}
+	}
 
 	events, err := SpawnWorker(ctx, cwd, prompt, extraArgs...)
 	if err != nil {

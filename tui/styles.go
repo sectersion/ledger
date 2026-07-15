@@ -1,6 +1,10 @@
 package tui
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"strings"
+
+	"github.com/charmbracelet/lipgloss"
+)
 
 // Colors follow charmbracelet/crush's default "Charmtone Pantera" theme, so
 // ledger's TUI reads as part of the same family of tools.
@@ -53,6 +57,29 @@ var (
 			Foreground(colorFg).
 			Padding(0, 1)
 )
+
+var (
+	promptStyle  = lipgloss.NewStyle().Bold(true).Foreground(colorPrimary)
+	toolUseStyle = lipgloss.NewStyle().Foreground(colorAccent)
+)
+
+// styleDetailLine colors a journal-stream line by its leading glyph: the
+// initial prompt, a tool call, or a success/failure result each get a
+// distinct color instead of one flat foreground.
+func styleDetailLine(line string) string {
+	switch {
+	case strings.HasPrefix(line, "▶ "):
+		return promptStyle.Render(line)
+	case strings.HasPrefix(line, "→ "):
+		return toolUseStyle.Render(line)
+	case strings.HasPrefix(line, "✓ "):
+		return doneStyle.Render(line)
+	case strings.HasPrefix(line, "✗ "):
+		return failedStyle.Render(line)
+	default:
+		return line
+	}
+}
 
 func statusStyle(s string) lipgloss.Style {
 	switch s {

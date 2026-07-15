@@ -88,7 +88,7 @@ func (m Model) treeView() string {
 		b.WriteString(line)
 		b.WriteString("\n")
 	}
-	avail := m.width - sidebarWidth
+	avail := m.width - m.sidebarWidth()
 	if avail < 0 {
 		avail = 0
 	}
@@ -99,11 +99,46 @@ func (m Model) treeView() string {
 	return paneStyle.Width(width).Height(m.height - 6).Render(b.String())
 }
 
-// sidebar shows the gradient "LEDGER" wordmark and the repo's currently
-// modified/untracked paths (polled via git status, see gitTick).
+// minWidthForLogo is the terminal width below which the block-letter logo
+// (35 cols) plus the tree/detail panes it leaves room for would clip — a
+// plain text wordmark is used instead.
+const minWidthForLogo = 100
+
+// sidebarContentWidth returns the sidebar's content width, shrunk to fit
+// narrow terminals instead of always reserving room for the full-size
+// block logo.
+func (m Model) sidebarContentWidth() int {
+	width := sidebarContentWidth
+	if m.width < minWidthForLogo {
+		width = m.width / 4
+		if width < 12 {
+			width = 12
+		}
+	}
+	if width > m.width {
+		width = m.width
+	}
+	return width
+}
+
+// sidebarWidth is the sidebar's total rendered width, content plus
+// paneStyle's border and padding.
+func (m Model) sidebarWidth() int {
+	return m.sidebarContentWidth() + 4
+}
+
+// sidebar shows the "LEDGER" wordmark (gradient block art if there's room,
+// a plain styled word otherwise) and the repo's currently modified/
+// untracked paths (polled via git status, see gitTick).
 func (m Model) sidebar() string {
+	width := m.sidebarContentWidth()
+
 	var b strings.Builder
-	b.WriteString(renderLogo())
+	if m.width < minWidthForLogo {
+		b.WriteString(headerStyle.Render("LEDGER"))
+	} else {
+		b.WriteString(renderLogo())
+	}
 	b.WriteString("\n\n")
 	b.WriteString(headerStyle.Render("MODIFIED"))
 	b.WriteString("\n")
@@ -111,11 +146,11 @@ func (m Model) sidebar() string {
 		b.WriteString(dimStyle.Render("clean"))
 	} else {
 		for _, f := range m.modifiedFiles {
-			b.WriteString(dimStyle.Render(truncate(f, sidebarContentWidth)))
+			b.WriteString(dimStyle.Render(truncate(f, width)))
 			b.WriteString("\n")
 		}
 	}
-	return paneStyle.Width(sidebarContentWidth).Height(m.height - 6).Render(strings.TrimRight(b.String(), "\n"))
+	return paneStyle.Width(width).Height(m.height - 6).Render(strings.TrimRight(b.String(), "\n"))
 }
 
 func (m Model) detailView() string {

@@ -61,7 +61,7 @@ func Implement(ctx context.Context, repo, plan, journalPath string) (map[string]
 // this plan needs. Falls back to defaultImplementRoles if the call fails
 // or its reply isn't a usable JSON array of role names.
 func decideRoles(ctx context.Context, repo, plan string) []string {
-	out, err := worker.Run(worker.WithAgentID(ctx, "role-planner"), repo, fmt.Sprintf(rolesPromptTmpl, plan))
+	out, err := worker.Run(worker.WithAgentID(ctx, "role-planner"), repo, fmt.Sprintf(rolesPromptTmpl, plan), worker.ReadOnlyArgs()...)
 	if err != nil {
 		return defaultImplementRoles
 	}
