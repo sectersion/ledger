@@ -2,6 +2,8 @@ package tui
 
 import (
 	"context"
+	"os/exec"
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -20,6 +22,12 @@ type pipelineDoneMsg struct{ err error }
 
 // tickMsg drives toast expiry.
 type tickMsg time.Time
+
+// gitTickMsg paces the sidebar's modified-files poll.
+type gitTickMsg time.Time
+
+// gitStatusMsg carries the sidebar's modified-files list.
+type gitStatusMsg struct{ files []string }
 
 func waitForUpdate(ch <-chan orchestrator.Update) tea.Cmd {
 	return func() tea.Msg {
@@ -50,4 +58,27 @@ func startPipeline(o *orchestrator.Orchestrator, repo, task, journalPath string)
 
 func tick() tea.Cmd {
 	return tea.Tick(500*time.Millisecond, func(t time.Time) tea.Msg { return tickMsg(t) })
+}
+
+func gitTick() tea.Cmd {
+	return tea.Tick(2*time.Second, func(t time.Time) tea.Msg { return gitTickMsg(t) })
+}
+
+// fetchGitStatus lists modified/untracked paths in repo for the sidebar.
+// Best-effort: any error (not a git repo, git missing) just yields no
+// files rather than failing the TUI.
+func fetchGitStatus(repo string) tea.Cmd {
+	return func() tea.Msg {
+		out, err := exec.Command("git", "-C", repo, "status", "--porcelain").Output()
+		if err != nil {
+			return gitStatusMsg{}
+		}
+		var files []string
+		for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
+			if len(line) > 3 {
+				files = append(files, strings.TrimSpace(line[3:]))
+			}
+		}
+		return gitStatusMsg{files: files}
+	}
 }

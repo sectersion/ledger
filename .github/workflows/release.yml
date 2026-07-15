@@ -1,0 +1,64 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [master, main]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+      - run: go build ./...
+      - run: go vet ./...
+      - run: go test ./...
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+
+      - name: Determine next version
+        id: ver
+        run: |
+          last=$(git tag --list 'v*' --sort=-v:refname | head -n1)
+          if [ -z "$last" ]; then
+            next="v0.1.0"
+          else
+            IFS='.' read -r major minor patch <<< "${last#v}"
+            next="v${major}.${minor}.$((patch + 1))"
+          fi
+          echo "tag=$next" >> "$GITHUB_OUTPUT"
+
+      - name: Cross-compile binaries
+        run: |
+          mkdir -p dist
+          for os_arch in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64; do
+            os="${os_arch%/*}"
+            arch="${os_arch#*/}"
+            ext=""
+            [ "$os" = "windows" ] && ext=".exe"
+            for bin in ledger ledger-ownership-mcp; do
+              GOOS="$os" GOARCH="$arch" go build -o "dist/${bin}-${os}-${arch}${ext}" "./cmd/${bin}"
+            done
+          done
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: ${{ steps.ver.outputs.tag }}
+          generate_release_notes: true
+          files: dist/*

@@ -36,12 +36,13 @@ func TestImplementEnforcesOwnershipAcrossWorkers(t *testing.T) {
 reply with only the exact text the tool returned, and nothing else. Do not
 edit any files.`
 
-	outputs, err := Implement(context.Background(), repo, plan, journalPath)
+	roles := defaultImplementRoles
+	outputs, err := ImplementScoped(context.Background(), repo, plan, journalPath, roles)
 	if err != nil {
-		t.Fatalf("Implement: %v", err)
+		t.Fatalf("ImplementScoped: %v", err)
 	}
-	if len(outputs) != len(implementRoles) {
-		t.Fatalf("got %d outputs, want %d", len(outputs), len(implementRoles))
+	if len(outputs) != len(roles) {
+		t.Fatalf("got %d outputs, want %d", len(outputs), len(roles))
 	}
 
 	granted, denied := 0, 0
@@ -58,7 +59,7 @@ edit any files.`
 	if granted != 1 {
 		t.Errorf("granted = %d, want exactly 1", granted)
 	}
-	if denied != len(implementRoles)-1 {
-		t.Errorf("denied = %d, want %d", denied, len(implementRoles)-1)
+	if denied != len(roles)-1 {
+		t.Errorf("denied = %d, want %d", denied, len(roles)-1)
 	}
 }

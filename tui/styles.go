@@ -2,28 +2,56 @@ package tui
 
 import "github.com/charmbracelet/lipgloss"
 
-var (
-	barStyle      = lipgloss.NewStyle().Bold(true)
-	dimStyle      = lipgloss.NewStyle().Faint(true)
-	selectedStyle = lipgloss.NewStyle().Reverse(true)
-	headerStyle   = lipgloss.NewStyle().Bold(true).Underline(true)
+// Colors follow charmbracelet/crush's default "Charmtone Pantera" theme, so
+// ledger's TUI reads as part of the same family of tools.
+const (
+	colorPrimary  = lipgloss.Color("#6B50FF") // Charple
+	colorAccent   = lipgloss.Color("#68FFD6") // Bok
+	colorFg       = lipgloss.Color("#ECEBF0") // Sash
+	colorFgSubtle = lipgloss.Color("#BFBCC8") // Smoke
+	colorFgDim    = lipgloss.Color("#605F6B") // Oyster
+	colorBg       = lipgloss.Color("#201F26") // Pepper
+	colorBgRaised = lipgloss.Color("#2D2C36") // BBQ
+	colorBorder   = lipgloss.Color("#3A3943") // Char
+	colorSelectBg = lipgloss.Color("#4D4C57") // Iron
 
-	runningStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("11")) // yellow
-	doneStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("10")) // green
-	failedStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("9"))  // red
-	pausedStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("14")) // cyan
-	killedStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))  // gray
+	colorRunning = lipgloss.Color("#F5EF34") // Mustard
+	colorDone    = lipgloss.Color("#00FFB2") // Julep
+	colorFailed  = lipgloss.Color("#FF577D") // Coral
+	colorPaused  = lipgloss.Color("#00A4FF") // Malibu
+	colorKilled  = lipgloss.Color("#605F6B") // Oyster
+)
+
+var (
+	barStyle = lipgloss.NewStyle().Bold(true).
+			Foreground(colorFg).Background(colorBgRaised).Padding(0, 1)
+	dimStyle      = lipgloss.NewStyle().Foreground(colorFgDim)
+	selectedStyle = lipgloss.NewStyle().Bold(true).Foreground(colorFg).Background(colorSelectBg)
+	headerStyle   = lipgloss.NewStyle().Bold(true).Foreground(colorPrimary).Underline(true)
+
+	runningStyle = lipgloss.NewStyle().Foreground(colorRunning)
+	doneStyle    = lipgloss.NewStyle().Foreground(colorDone)
+	failedStyle  = lipgloss.NewStyle().Foreground(colorFailed)
+	pausedStyle  = lipgloss.NewStyle().Foreground(colorPaused)
+	killedStyle  = lipgloss.NewStyle().Foreground(colorKilled)
 
 	toastStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("0")).
-			Background(lipgloss.Color("11")).
+			Foreground(colorBg).
+			Background(colorAccent).
+			Bold(true).
 			Padding(0, 1)
 
 	modalStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
+			BorderForeground(colorPrimary).
+			Foreground(colorFg).
 			Padding(1, 2)
 
-	paneStyle = lipgloss.NewStyle().Padding(0, 1)
+	paneStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(colorBorder).
+			Foreground(colorFg).
+			Padding(0, 1)
 )
 
 func statusStyle(s string) lipgloss.Style {

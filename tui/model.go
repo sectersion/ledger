@@ -59,6 +59,8 @@ type Model struct {
 
 	cap int
 
+	modifiedFiles []string
+
 	width, height int
 }
 
@@ -93,6 +95,8 @@ func (m Model) Init() tea.Cmd {
 		waitForUpdate(m.o.Updates()),
 		waitForGate(m.o.Gates()),
 		tick(),
+		gitTick(),
+		fetchGitStatus(m.repo),
 	)
 }
 
@@ -122,8 +126,12 @@ func (m *Model) resize() {
 	if paneHeight < 1 {
 		paneHeight = 1
 	}
-	treeWidth := m.width / 3
-	detailWidth := m.width - treeWidth - 1
+	avail := m.width - sidebarWidth
+	if avail < 0 {
+		avail = 0
+	}
+	treeWidth := avail / 3
+	detailWidth := avail - treeWidth - 1
 	if detailWidth < 1 {
 		detailWidth = 1
 	}
@@ -177,6 +185,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.toast = ""
 		}
 		return m, tick()
+
+	case gitTickMsg:
+		return m, tea.Batch(gitTick(), fetchGitStatus(m.repo))
+
+	case gitStatusMsg:
+		m.modifiedFiles = msg.files
+		return m, nil
 
 	case tea.KeyMsg:
 		return m.handleKey(msg)

@@ -12,7 +12,7 @@ func (m Model) View() string {
 		return "starting…"
 	}
 
-	body := lipgloss.JoinHorizontal(lipgloss.Top, m.treeView(), m.detailView())
+	body := lipgloss.JoinHorizontal(lipgloss.Top, m.sidebar(), m.treeView(), m.detailView())
 	page := lipgloss.JoinVertical(lipgloss.Left, m.topBar(), body, m.bottomBar())
 
 	switch m.mode {
@@ -88,11 +88,34 @@ func (m Model) treeView() string {
 		b.WriteString(line)
 		b.WriteString("\n")
 	}
-	width := m.width/3 - 2
+	avail := m.width - sidebarWidth
+	if avail < 0 {
+		avail = 0
+	}
+	width := avail/3 - 4
 	if width < 1 {
 		width = 1
 	}
-	return paneStyle.Width(width).Height(m.height - 4).Render(b.String())
+	return paneStyle.Width(width).Height(m.height - 6).Render(b.String())
+}
+
+// sidebar shows the gradient "LEDGER" wordmark and the repo's currently
+// modified/untracked paths (polled via git status, see gitTick).
+func (m Model) sidebar() string {
+	var b strings.Builder
+	b.WriteString(renderLogo())
+	b.WriteString("\n\n")
+	b.WriteString(headerStyle.Render("MODIFIED"))
+	b.WriteString("\n")
+	if len(m.modifiedFiles) == 0 {
+		b.WriteString(dimStyle.Render("clean"))
+	} else {
+		for _, f := range m.modifiedFiles {
+			b.WriteString(dimStyle.Render(truncate(f, sidebarContentWidth)))
+			b.WriteString("\n")
+		}
+	}
+	return paneStyle.Width(sidebarContentWidth).Height(m.height - 6).Render(strings.TrimRight(b.String(), "\n"))
 }
 
 func (m Model) detailView() string {
